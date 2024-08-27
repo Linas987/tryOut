@@ -12,6 +12,7 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
     const logFilePath = path.join(__dirname, 'log.log');
+    //read file initially
     fs.readFile(logFilePath, 'utf8', (err, data) => {
         if (err) {
             return res.status(500).send('Error reading log file');
@@ -20,11 +21,12 @@ app.listen(port, () => {
         console.log(result)
         writeToFile(result);
     });
+    //listen to changes in file
     fs.watch('log.log', function (event, filename) {
         console.log('event is: ' + event);
         if (filename) {
             console.log('filename provided: ' + filename);
-            //handleNewLogEntry(data);
+            //changes detected, read file again
             fs.readFile(logFilePath, 'utf8', (err, data) => {
                 if (err) {
                     return res.status(500).send('Error reading log file');
@@ -45,11 +47,14 @@ function writeToFile(data){
         if (error) throw error;
       });
 }
-
+//Parser function
 function parser(data){
+    //seperate objects
     const queries = [];
     var lines = data.split('\n');
+    //current object
     let currentQuery = {};
+    //removes first 3 lines
     if(lines[0].startsWith('/sbin')){
         lines=lines.slice(3)
     }
@@ -66,6 +71,7 @@ function parser(data){
                 currentQuery.userHost = line.replace('# User@Host:', '').trim();
                 break;
             case line.startsWith('# Schema:'):
+                //S non-spaces, s spaces, d digits, * 0or more, + 1or more
                 const schemaData = line.match(/Schema: (\S*)\s+Last_errno: (\d+)\s+Killed: (\d+)/);
                 currentQuery.schema = schemaData ? schemaData[1] : '';
                 currentQuery.lastErrno = schemaData ? schemaData[2] : '';
@@ -118,21 +124,4 @@ function parser(data){
         queries.push(currentQuery);
     }
     return queries;
-}
-
-function handleNewLogEntry(data) {
-    var newData = parser(data)
-    const logFilePath = path.join(__dirname, 'save.json')
-    fs.readFile(logFilePath, 'utf8', (err, oldData) => {
-        if (err) {
-            return res.status(500).send('Error reading log file');
-        }
-        let oldJson=JSON.parse(oldData);
-        newData.forEach(newObject => {
-            oldJson.push(newObject);
-        });
-        console.log(oldJson);
-        newjson = JSON.stringify(oldJson);
-        fs.writeFileSync("save.json",newjson,"utf-8");
-    })
 }

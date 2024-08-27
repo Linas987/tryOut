@@ -13,11 +13,30 @@ app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
     const logFilePath = path.join(__dirname, 'log.log');
     fs.readFile(logFilePath, 'utf8', (err, data) => {
-    if (err) {
-        return res.status(500).send('Error reading log file');
-    }
-    const result = parser(data)
-    writeToFile(result);
+        if (err) {
+            return res.status(500).send('Error reading log file');
+        }
+        const result = parser(data)
+        console.log(result)
+        writeToFile(result);
+    });
+    fs.watch('log.log', function (event, filename) {
+        console.log('event is: ' + event);
+        if (filename) {
+            console.log('filename provided: ' + filename);
+            //handleNewLogEntry(data);
+            fs.readFile(logFilePath, 'utf8', (err, data) => {
+                if (err) {
+                    return res.status(500).send('Error reading log file');
+                }
+                parser(data)
+                const newResult = parser(data)
+                console.log(newResult)
+                writeToFile(newResult);
+            })
+        } else {
+            console.log('filename not provided');
+        }
     });
 })
 
@@ -31,9 +50,9 @@ function parser(data){
     const queries = [];
     var lines = data.split('\n');
     let currentQuery = {};
-
-    lines=lines.slice(3)
-    console.log(lines)
+    if(lines[0].startsWith('/sbin')){
+        lines=lines.slice(3)
+    }
     lines.forEach(line => {
         switch(true) {
             case line.startsWith('# Time:'):
@@ -90,7 +109,7 @@ function parser(data){
             case line.startsWith('SET timestamp='):
                 currentQuery.timestamp = line.match(/SET timestamp=(\d+);/)[1];
                 break;
-            case (line.trim().length > 0 && !line.startsWith('#')):
+            case (line.trim().length > 0 && !line.startsWith('#') && !line.startsWith('at desc limit')):
                 currentQuery.query = (currentQuery.query || '') + line.trim() + ' ';
                 break;
           }          
@@ -99,4 +118,21 @@ function parser(data){
         queries.push(currentQuery);
     }
     return queries;
+}
+
+function handleNewLogEntry(data) {
+    var newData = parser(data)
+    const logFilePath = path.join(__dirname, 'save.json')
+    fs.readFile(logFilePath, 'utf8', (err, oldData) => {
+        if (err) {
+            return res.status(500).send('Error reading log file');
+        }
+        let oldJson=JSON.parse(oldData);
+        newData.forEach(newObject => {
+            oldJson.push(newObject);
+        });
+        console.log(oldJson);
+        newjson = JSON.stringify(oldJson);
+        fs.writeFileSync("save.json",newjson,"utf-8");
+    })
 }

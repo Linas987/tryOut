@@ -1,6 +1,7 @@
 const express = require('express')
 const fs = require('fs')
 const path = require('path');
+const FileSystem = require("fs");
 const app = express()
 const port = 3000
 
@@ -16,15 +17,23 @@ app.listen(port, () => {
         return res.status(500).send('Error reading log file');
     }
     const result = parser(data)
-    console.log(result);
+    writeToFile(result);
     });
 })
 
+function writeToFile(data){
+    FileSystem.writeFile('save.json', JSON.stringify(data), (error) => {
+        if (error) throw error;
+      });
+}
+
 function parser(data){
     const queries = [];
-    const lines = data.split('\n');
+    var lines = data.split('\n');
     let currentQuery = {};
 
+    lines=lines.slice(3)
+    console.log(lines)
     lines.forEach(line => {
         switch(true) {
             case line.startsWith('# Time:'):
@@ -89,6 +98,5 @@ function parser(data){
     if (Object.keys(currentQuery).length > 0) {
         queries.push(currentQuery);
     }
-
     return queries;
 }
